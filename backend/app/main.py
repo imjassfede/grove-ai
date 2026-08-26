@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analyses, health
+from app.api.routes import analyses, auth, health
 from app.config.settings import get_settings
 from app.database.connection import create_tables
 
@@ -17,8 +17,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Growth AI",
-    description="AI-powered Growth Intelligence Platform",
+    title="Grove",
+    description="Grove company analysis and growth intelligence API",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -32,4 +32,5 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(analyses.router, prefix="/api/v1")
