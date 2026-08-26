@@ -7,7 +7,7 @@ from google.genai import types
 from app.config.settings import get_settings
 
 _client = genai.Client(api_key=get_settings().google_api_key)
-_MODEL = "gemini-2.0-flash"
+_MODEL = "gemini-2.5-flash"
 
 
 class BaseIntelligenceAgent(ABC):
