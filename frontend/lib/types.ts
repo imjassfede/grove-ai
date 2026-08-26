@@ -1,29 +1,14 @@
-export type AnalysisStatus = "pending" | "running" | "completed" | "failed";
-
+export type AnalysisStatus = "pending" | "running" | "classifying" | "planning" | "analyzing" | "synthesizing" | "complete" | "error";
+export interface RootCause { cause: string; evidence: string; impact: string; }
+export interface Recommendation { action: string; priority: string; effort: string; impact: string; owner: string; timeline: string; }
+export interface Experiment { hypothesis: string; measurement: string; timeline: string; ice_score: number; }
 export interface Analysis {
-  id: string;
-  challenge: string;
-  domain?: string | null;
-  status: AnalysisStatus | string;
-  business_area?: string | null;
-  problem_type?: string | null;
-  urgency?: string | null;
-  selected_agents?: string[] | null;
-  agent_results?: Record<string, unknown> | null;
-  root_causes?: string[] | null;
-  insights?: string[] | null;
-  recommendations?: string[] | null;
-  experiments?: string[] | null;
-  executive_summary?: string | null;
-  progress?: Array<Record<string, unknown>> | null;
-  error?: string | null;
-  created_at?: string;
-  updated_at?: string;
+  id: string; challenge: string; domain?: string | null; status: AnalysisStatus | string;
+  business_area?: string | null; problem_type?: string | null; urgency?: string | null;
+  selected_agents?: string[] | null; agent_results?: Record<string, unknown> | null;
+  root_causes?: RootCause[] | null; insights?: string[] | null;
+  recommendations?: Recommendation[] | null; experiments?: Experiment[] | null;
+  executive_summary?: string | null; progress?: string[] | null; error?: string | null;
+  created_at?: string; updated_at?: string;
 }
-
-export interface CanvasNodeData {
-  label: string;
-  description?: string;
-  items?: string[];
-  [key: string]: unknown;
-}
+export interface CanvasNodeData { label: string; description?: string; items?: string[]; [key: string]: unknown; }
