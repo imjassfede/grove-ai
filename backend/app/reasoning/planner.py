@@ -1,11 +1,5 @@
-import json
-
-import anthropic
-
-from app.config.settings import get_settings
+from app.config.llm import complete
 from app.reasoning.state import GrowthState
-
-_client = anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key)
 
 _AVAILABLE_AGENTS = {
     "market": "Analyzes market dynamics, trends, TAM/SAM/SOM, and market opportunities",
@@ -48,26 +42,19 @@ Return JSON:
 async def plan(state: GrowthState) -> dict:
     agents_list = "\n".join(f"- {name}: {desc}" for name, desc in _AVAILABLE_AGENTS.items())
 
-    response = await _client.messages.create(
-        model="claude-opus-4-7",
-        max_tokens=1024,
-        system=[{"type": "text", "text": _SYSTEM, "cache_control": {"type": "ephemeral"}}],
-        messages=[{
-            "role": "user",
-            "content": _PROMPT.format(
-                challenge=state["challenge"],
-                business_area=state["business_area"],
-                problem_type=state["problem_type"],
-                urgency=state["urgency"],
-                key_questions="\n".join(f"  - {q}" for q in state["key_questions"]),
-                agents_list=agents_list,
-            ),
-        }],
+    data = await complete(
+        _SYSTEM,
+        _PROMPT.format(
+            challenge=state["challenge"],
+            business_area=state["business_area"],
+            problem_type=state["problem_type"],
+            urgency=state["urgency"],
+            key_questions="\n".join(f"  - {q}" for q in state["key_questions"]),
+            agents_list=agents_list,
+        ),
     )
 
-    data = json.loads(response.content[0].text)
     selected = data["selected_agents"]
-
     return {
         "selected_agents": selected,
         "agent_focus": data["agent_focus"],

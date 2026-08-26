@@ -1,11 +1,7 @@
 import json
 
-import anthropic
-
-from app.config.settings import get_settings
+from app.config.llm import complete
 from app.reasoning.state import GrowthState
-
-_client = anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key)
 
 _SYSTEM = """You are a senior management consultant synthesizing intelligence from multiple business analysts.
 Your job is to combine their findings into a clear, structured, and actionable Growth Intelligence Report.
@@ -74,20 +70,13 @@ async def evaluate(state: GrowthState) -> dict:
         agent_results_text += f"\n\n=== {agent_name.upper()} INTELLIGENCE ===\n"
         agent_results_text += json.dumps(result, indent=2)
 
-    response = await _client.messages.create(
-        model="claude-opus-4-7",
-        max_tokens=4096,
-        system=[{"type": "text", "text": _SYSTEM, "cache_control": {"type": "ephemeral"}}],
-        messages=[{
-            "role": "user",
-            "content": _PROMPT.format(
-                challenge=state["challenge"],
-                agent_results=agent_results_text,
-            ),
-        }],
+    data = await complete(
+        _SYSTEM,
+        _PROMPT.format(
+            challenge=state["challenge"],
+            agent_results=agent_results_text,
+        ),
     )
-
-    data = json.loads(response.content[0].text)
 
     return {
         "executive_summary": data["executive_summary"],

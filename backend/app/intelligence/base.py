@@ -1,11 +1,13 @@
 import json
 from abc import ABC, abstractmethod
 
-import anthropic
+from google import genai
+from google.genai import types
 
 from app.config.settings import get_settings
 
-_client = anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key)
+_client = genai.Client(api_key=get_settings().google_api_key)
+_MODEL = "gemini-2.0-flash"
 
 
 class BaseIntelligenceAgent(ABC):
@@ -44,18 +46,15 @@ Provide your intelligence analysis as JSON with this structure:
 
 Be specific, analytical, and grounded. Minimum 3 findings and 2 insights."""
 
-        response = await _client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2048,
-            system=[{
-                "type": "text",
-                "text": self.system_prompt,
-                "cache_control": {"type": "ephemeral"},
-            }],
-            messages=[{"role": "user", "content": user_message}],
+        response = await _client.aio.models.generate_content(
+            model=_MODEL,
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=self.system_prompt,
+                response_mime_type="application/json",
+            ),
         )
-
-        result = json.loads(response.content[0].text)
+        result = json.loads(response.text)
         result["agent"] = self.name
 
         return {

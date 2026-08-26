@@ -5,8 +5,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_name: str = "Growth AI"
-    anthropic_api_key: str
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/growthai"
+    google_api_key: str
+    database_url: str = "sqlite+aiosqlite:///./growthai.db"
     cors_origins: list[str] = ["http://localhost:3000"]
     debug: bool = False
 

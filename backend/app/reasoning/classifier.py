@@ -1,11 +1,5 @@
-import json
-
-import anthropic
-
-from app.config.settings import get_settings
+from app.config.llm import complete
 from app.reasoning.state import GrowthState
-
-_client = anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key)
 
 _SYSTEM = """You are a senior business strategy consultant and problem classifier.
 Your role is to deeply understand a business challenge and classify it accurately
@@ -31,14 +25,7 @@ context_signals are specific facts or signals mentioned in the challenge text.""
 
 
 async def classify(state: GrowthState) -> dict:
-    response = await _client.messages.create(
-        model="claude-opus-4-7",
-        max_tokens=1024,
-        system=[{"type": "text", "text": _SYSTEM, "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": _PROMPT.format(challenge=state["challenge"])}],
-    )
-
-    data = json.loads(response.content[0].text)
+    data = await complete(_SYSTEM, _PROMPT.format(challenge=state["challenge"]))
 
     return {
         "business_area": data["business_area"],
