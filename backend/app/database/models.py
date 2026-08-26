@@ -30,6 +30,15 @@ class AuthSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+class AnonymousSession(Base):
+    __tablename__ = "anonymous_sessions"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    credits: Mapped[int] = mapped_column(default=5, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class ProductEvent(Base):
     __tablename__ = "product_events"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -46,6 +55,7 @@ class Analysis(Base):
     challenge: Mapped[str] = mapped_column(Text, nullable=False)
     domain: Mapped[str | None] = mapped_column(String(255), index=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    anonymous_session_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("anonymous_sessions.id", ondelete="SET NULL"), index=True)
     status: Mapped[str] = mapped_column(String(32), default="pending")
     business_area: Mapped[str | None] = mapped_column(String(64))
     problem_type: Mapped[str | None] = mapped_column(String(64))
