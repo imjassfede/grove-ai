@@ -2,38 +2,21 @@
 
 **AI-powered Strategic Intelligence**
 
-Grove is an experimental AI system for turning complex business challenges into structured analysis, strategic insights, prioritised recommendations, and actionable experiments.
+> One business problem. Multiple AI perspectives. One strategic answer.
 
-Instead of relying on a single general-purpose answer, Grove routes a business challenge to specialist intelligence agents, runs relevant analyses in parallel, synthesises their findings, and presents the result through a visual workspace.
+Grove is an experimental multi-agent AI system for turning complex business challenges into structured analysis, strategic insights, prioritised recommendations, and actionable experiments.
 
-> **One business problem. Multiple AI perspectives. One strategic answer.**
+Instead of asking a single general-purpose model for a generic answer, Grove decomposes a business problem, selects the most relevant specialist perspectives, runs analyses in parallel, and synthesises the findings into one strategic view.
 
----
+## Why Grove
 
-## What it does
+Business problems rarely belong to one function.
 
-Give Grove a challenge such as:
+A question about declining revenue may require market context, customer behaviour, competitive intelligence, unit economics, go-to-market analysis, and experimentation.
 
-- "Why is our enterprise churn increasing?"
-- "Revenue growth slowed in Europe. What should we investigate?"
-- "Activation is dropping after our onboarding update. Where should we look?"
+Grove explores what happens when these perspectives become specialised AI agents that can reason together.
 
-Grove classifies the problem, selects the most relevant specialist perspectives, runs them in parallel, and combines the findings into a structured strategic analysis.
-
-### Specialist intelligence layers
-
-| Agent | Focus |
-| --- | --- |
-| Market | Market dynamics, TAM/SAM/SOM, trends |
-| Customer | Customer behaviour, personas, churn signals |
-| Competitor | Competitive positioning, gaps, pricing |
-| Revenue | Funnel, CAC/LTV, unit economics |
-| Experiment | Growth hypotheses and prioritisation |
-| GTM | ICP, channels, positioning, messaging |
-
----
-
-## Architecture
+## How it works
 
 ```text
 Business Challenge
@@ -55,19 +38,45 @@ Strategic Insight
 Visual Intelligence Canvas
 ```
 
+## Specialist intelligence layers
+
+| Agent | Focus |
+| --- | --- |
+| **Market** | Market dynamics, TAM/SAM/SOM, trends |
+| **Customer** | Customer behaviour, personas, churn signals |
+| **Competitor** | Competitive positioning, gaps, pricing |
+| **Revenue** | Funnel, CAC/LTV, unit economics |
+| **Experiment** | Growth hypotheses and prioritisation |
+| **GTM** | ICP, channels, positioning, messaging |
+
+The system is designed so that not every problem needs every agent. Grove first determines which perspectives are relevant, then orchestrates the analysis accordingly.
+
+## What Grove produces
+
+For a business challenge, Grove aims to produce:
+
+- structured multi-perspective analysis
+- key findings and signals
+- prioritised recommendations
+- growth and business experiments
+- a visual intelligence workspace
+- a structured report that can be reviewed by a human decision-maker
+
+The goal is not to replace human judgement. It is to make the reasoning process faster, more structured, and easier to explore.
+
+## Architecture
+
 ### Current stack
 
 - **Python / FastAPI** — backend API
-- **LangGraph** — reasoning and agent orchestration
+- **LangGraph** — agent orchestration and reasoning workflow
 - **Gemini 2.5 Flash** — LLM layer
 - **PostgreSQL + pgvector** — persistence and future memory layer
 - **React / Next.js** — frontend
 - **React Flow** — visual intelligence canvas
 - **Docker Compose** — local full-stack environment
 
-The LLM layer is intentionally isolated behind a small provider interface so the reasoning system can evolve independently from the underlying model provider.
-
----
+The LLM layer is isolated behind a provider interface so Grove can evolve toward a model-agnostic architecture without coupling the reasoning workflow to a single provider.
 
 ## Current MVP
 
@@ -90,20 +99,16 @@ The LLM layer is intentionally isolated behind a small provider interface so the
 - Export to business documents
 - Usage and billing infrastructure
 
----
-
 ## Roadmap
 
 | Phase | Focus |
 | --- | --- |
-| v0.2 | Authentication, workspaces, shareable analyses |
-| v0.3 | Persistent memory and RAG |
-| v0.4 | Business data connectors — GA4, HubSpot, Stripe, LinkedIn Ads |
-| v0.5 | Export to PDF, Notion and Google Slides |
-| v0.6 | Billing, usage limits and team seats |
-| v1.0 | Enterprise capabilities, API access and white-labeling |
-
----
+| **v0.2** | Authentication, workspaces, shareable analyses |
+| **v0.3** | Persistent memory and RAG |
+| **v0.4** | Business data connectors — GA4, HubSpot, Stripe, LinkedIn Ads |
+| **v0.5** | Export to PDF, Notion and Google Slides |
+| **v0.6** | Billing, usage limits and team seats |
+| **v1.0** | Enterprise capabilities, API access and white-labeling |
 
 ## Local development
 
@@ -156,10 +161,14 @@ Or run the full stack with:
 docker compose up --build
 ```
 
----
-
 ## Project status
 
-Grove is an early-stage experimental project. The goal is to explore how multi-agent AI systems can move beyond generic chat responses and become practical interfaces for business reasoning and decision support.
+Grove is an early-stage experimental project exploring how multi-agent AI systems can move beyond generic chat responses and become practical interfaces for business reasoning and decision support.
 
-Built in public as the architecture evolves.
+The project is being built iteratively, with the architecture and product assumptions evolving alongside each experiment.
+
+## Build in public
+
+Grove is also a practical experiment in building AI products in public: testing architectures, evaluating agent workflows, connecting business data, and documenting what actually works.
+
+More experiments and implementation details will be shared as the project evolves.
