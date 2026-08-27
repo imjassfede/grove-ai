@@ -94,12 +94,17 @@ Return:
         followup = None
     if followup not in AGENT_SPECS:
         followup = None
+
+    missing = data.get("missing_evidence") or []
+    reason = data.get("reason") or "Close the highest-value evidence gap identified by the critic."
+    followup_focus = f"{reason} Missing evidence: {'; '.join(missing[:3])}" if followup else ""
     data["source_scores"] = source_scores[:40]
     data["knowledge_graph"] = {"node_count": len(graph["nodes"]), "edge_count": len(graph["edges"])}
     data.setdefault("contradictions", [])
     return {
         "critic": data,
         "followup_agent": followup,
+        "followup_focus": followup_focus,
         "research_round": round_no + 1,
         "knowledge_graph": graph,
         "progress": ["Cross-agent critic completed — " + (f"targeted follow-up: {followup}" if followup else "evidence sufficient")],
