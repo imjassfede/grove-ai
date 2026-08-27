@@ -30,30 +30,13 @@ async def _run_graph(analysis_id: uuid.UUID, challenge: str, domain: str | None 
         await repo.update_from_state(analysis_id, {"status": "running", "progress": ["Starting grounded growth investigation…"]})
         prior_memory = await AnalysisMemory(session).get_similar_analyses(challenge, limit=3)
         initial_state: GrowthState = {
-            "challenge": challenge,
-            "analysis_id": str(analysis_id),
-            "domain": domain or "",
-            "business_area": "",
-            "problem_type": "",
-            "urgency": "",
-            "key_questions": [],
-            "selected_agents": [],
-            "agent_focus": {},
-            "agent_results": {},
-            "agent_trace": {},
-            "knowledge_graph": {"nodes": [], "edges": []},
-            "research_memory": prior_memory,
-            "critic": {},
-            "research_round": 0,
-            "followup_agent": None,
-            "root_causes": [],
-            "insights": [],
-            "recommendations": [],
-            "experiments": [],
-            "executive_summary": "",
-            "status": "classifying",
-            "progress": [],
-            "error": None,
+            "challenge": challenge, "analysis_id": str(analysis_id), "domain": domain or "",
+            "business_area": "", "problem_type": "", "urgency": "", "key_questions": [],
+            "selected_agents": [], "agent_focus": {}, "agent_results": {}, "agent_trace": {},
+            "knowledge_graph": {"nodes": [], "edges": []}, "research_memory": prior_memory,
+            "critic": {}, "research_round": 0, "followup_agent": None, "followup_focus": "",
+            "root_causes": [], "insights": [], "recommendations": [], "experiments": [],
+            "executive_summary": "", "status": "classifying", "progress": [], "error": None,
         }
         try:
             async for event in graph.astream(initial_state):
@@ -97,9 +80,7 @@ async def submit_challenge(request: SubmitChallengeRequest, response: Response, 
             raise HTTPException(status_code=402, detail="No Grove credits remaining")
         user.credits -= 1
         analysis = Analysis(challenge=request.challenge, domain=request.domain, user_id=user.id, status="pending")
-        session.add(analysis)
-        await session.commit()
-        await session.refresh(analysis)
+        session.add(analysis); await session.commit(); await session.refresh(analysis)
         await track_event("credit_consumed", str(user.id), {"analysis_id": str(analysis.id), "credits_remaining": user.credits})
     else:
         anon, raw_token = await _get_or_create_anonymous(session, grove_anonymous)
@@ -107,9 +88,7 @@ async def submit_challenge(request: SubmitChallengeRequest, response: Response, 
             raise HTTPException(status_code=402, detail="Your 5 free credits have been used. Create an account to continue.")
         anon.credits -= 1
         analysis = Analysis(challenge=request.challenge, domain=request.domain, anonymous_session_id=anon.id, status="pending")
-        session.add(analysis)
-        await session.commit()
-        await session.refresh(analysis)
+        session.add(analysis); await session.commit(); await session.refresh(analysis)
         response.set_cookie(ANON_COOKIE, raw_token, httponly=True, secure=True, samesite="none", max_age=30 * 86400, path="/")
         await track_event("credit_consumed", "anonymous", {"analysis_id": str(analysis.id), "anonymous": True, "credits_remaining": anon.credits})
     background_tasks.add_task(_run_graph, analysis.id, analysis.challenge, analysis.domain)
@@ -119,8 +98,7 @@ async def submit_challenge(request: SubmitChallengeRequest, response: Response, 
 @router.get("", response_model=AnalysisListResponse)
 async def list_analyses(session: AsyncSession = Depends(get_session), grove_session: str | None = Cookie(default=None)) -> AnalysisListResponse:
     user = await _get_authenticated_user(session, grove_session)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not user: raise HTTPException(status_code=401, detail="Not authenticated")
     result = await session.execute(select(Analysis).where(Analysis.user_id == user.id).order_by(Analysis.created_at.desc()).limit(50))
     analyses = list(result.scalars().all())
     return AnalysisListResponse(analyses=[AnalysisResponse.model_validate(a) for a in analyses], total=len(analyses))
@@ -129,15 +107,12 @@ async def list_analyses(session: AsyncSession = Depends(get_session), grove_sess
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
 async def get_analysis(analysis_id: uuid.UUID, session: AsyncSession = Depends(get_session), grove_session: str | None = Cookie(default=None), grove_anonymous: str | None = Cookie(default=None)) -> AnalysisResponse:
     analysis = await session.get(Analysis, analysis_id)
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    if not analysis: raise HTTPException(status_code=404, detail="Analysis not found")
     user = await _get_authenticated_user(session, grove_session)
-    if user and analysis.user_id == user.id:
-        return AnalysisResponse.model_validate(analysis)
+    if user and analysis.user_id == user.id: return AnalysisResponse.model_validate(analysis)
     if analysis.user_id is None and grove_anonymous:
         token_hash = hashlib.sha256(grove_anonymous.encode()).hexdigest()
         result = await session.execute(select(AnonymousSession).where(AnonymousSession.token_hash == token_hash))
         anon = result.scalar_one_or_none()
-        if anon and analysis.anonymous_session_id == anon.id:
-            return AnalysisResponse.model_validate(analysis)
+        if anon and analysis.anonymous_session_id == anon.id: return AnalysisResponse.model_validate(analysis)
     raise HTTPException(status_code=403, detail="You do not have access to this analysis")
