@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://grove-api-u1xv.onrender.com";
+
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
         source: "/api/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/:path*`,
+        destination: `${API_URL}/api/:path*`,
       },
     ];
   },
