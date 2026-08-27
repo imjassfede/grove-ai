@@ -22,7 +22,7 @@ class BaseIntelligenceAgent(ABC):
     def _build_research_prompt(self, state: dict, iteration: int, previous: str) -> str:
         challenge = state["challenge"]
         domain = state.get("domain", "").strip()
-        focus_areas = state.get("focus_areas", [])
+        focus_areas = state.get("focus_areas") or state.get("agent_focus", {}).get(self.name, [])
         key_questions = state.get("key_questions", [])
         shared_results = state.get("agent_results", {})
         spec = self._get_spec()
