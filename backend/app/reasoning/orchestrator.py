@@ -1,31 +1,15 @@
-from langgraph.constants import Send
 from langgraph.graph import StateGraph
 
 from app.reasoning import classifier, evaluator, planner
 from app.reasoning.state import GrowthState
 
 
-def _dispatch_agents(state: GrowthState) -> list[Send]:
-    """Fan out to selected intelligence agents in parallel with the company context."""
-    from app.intelligence import registry
-
-    return [
-        Send(
-            agent_name,
-            {
-                "challenge": state["challenge"],
-                "analysis_id": state["analysis_id"],
-                "domain": state.get("domain", ""),
-                "business_area": state["business_area"],
-                "problem_type": state["problem_type"],
-                "urgency": state["urgency"],
-                "key_questions": state["key_questions"],
-                "focus_areas": state["agent_focus"].get(agent_name, []),
-            },
-        )
-        for agent_name in state["selected_agents"]
-        if agent_name in registry
-    ]
+# Grove currently uses a deliberately simple staged research DAG.
+# The sequence makes dependencies explicit:
+#   competitor -> market/customer/revenue/gtm -> experiment -> synthesis
+#
+# This is the foundation for later adaptive routing, critic loops, and
+# specialist-to-specialist delegation.
 
 
 def build_graph() -> StateGraph:
@@ -41,11 +25,20 @@ def build_graph() -> StateGraph:
 
     builder.set_entry_point("classify")
     builder.add_edge("classify", "plan")
-    builder.add_conditional_edges("plan", _dispatch_agents)
 
-    from app.intelligence import registry as reg
-    for name in reg:
-        builder.add_edge(name, "evaluate")
+    # Competitive intelligence is the shared foundation. All downstream
+    # specialists receive its result through the shared LangGraph state.
+    builder.add_edge("plan", "competitor")
+
+    # Cross-functional research runs in parallel after the competitor dossier
+    # is available. Their results are merged into agent_results.
+    for name in ("market", "customer", "revenue", "gtm"):
+        builder.add_edge("competitor", name)
+
+    # Experiment design only starts once all four research perspectives have
+    # completed, so it can reason over the complete intelligence set.
+    builder.add_edge(["market", "customer", "revenue", "gtm"], "experiment")
+    builder.add_edge("experiment", "evaluate")
 
     builder.set_finish_point("evaluate")
     return builder.compile()
