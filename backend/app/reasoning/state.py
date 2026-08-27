@@ -35,34 +35,35 @@ class Experiment(TypedDict):
 
 
 class GrowthState(TypedDict):
-    # Input
     challenge: str
     analysis_id: str
     domain: str
 
-    # Classification
     business_area: str
     problem_type: str
     urgency: str
     key_questions: list[str]
 
-    # Planning
     selected_agents: list[str]
     agent_focus: dict[str, list[str]]
 
-    # Shared intelligence — specialist outputs accumulate here and are visible
-    # to downstream agents in later workflow phases.
+    # Shared intelligence accumulates across specialist phases.
     agent_results: Annotated[dict[str, Any], operator.or_]
     agent_trace: dict[str, Any]
+    knowledge_graph: dict[str, list[dict[str, Any]]]
+    research_memory: list[dict[str, Any]]
 
-    # Synthesis
+    # Critic / adaptive research loop.
+    critic: dict[str, Any]
+    research_round: int
+    followup_agent: str | None
+
     root_causes: list[RootCause]
     insights: list[Insight]
     recommendations: list[Recommendation]
     experiments: list[Experiment]
     executive_summary: str
 
-    # Progress tracking
     status: str
     progress: Annotated[list[str], operator.add]
     error: str | None
