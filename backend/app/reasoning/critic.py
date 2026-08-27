@@ -11,7 +11,9 @@ from app.reasoning.state import GrowthState
 
 _client = genai.Client(api_key=get_settings().google_api_key)
 _MODEL = "gemini-3.6-flash"
-_MAX_ROUNDS = 2
+# One critic + at most one targeted follow-up is enough to preserve the
+# agentic correction loop without turning every analysis into a long chain.
+_MAX_ROUNDS = 1
 
 _SYSTEM = """You are Grove's cross-agent research critic.
 You inspect shared intelligence, evidence quality, contradictions, and unresolved questions. Decide whether one targeted specialist follow-up can materially improve the analysis. Never invent facts. Return valid JSON only."""
