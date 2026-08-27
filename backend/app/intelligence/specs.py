@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,7 @@ AGENT_SPECS: dict[str, AgentSpec] = {
             "calculate only metrics whose inputs are available and label assumptions explicitly",
         ),
         preferred_sources=("pricing pages", "billing documentation", "company filings", "investor materials", "product pages"),
-        tools=("web_search", "url_context", "calculator"),
+        tools=("web_search", "url_context", "code_execution"),
     ),
     "experiment": AgentSpec(
         objective="Turn evidence and uncertainty into the smallest high-learning growth experiments.",
@@ -62,7 +62,7 @@ AGENT_SPECS: dict[str, AgentSpec] = {
             "design minimum viable experiments and prioritize them with ICE",
         ),
         preferred_sources=("existing agent evidence", "company product pages", "analytics documentation", "industry benchmarks"),
-        tools=("web_search", "url_context", "calculator"),
+        tools=("web_search", "url_context", "code_execution"),
     ),
     "gtm": AgentSpec(
         objective="Build an evidence-backed go-to-market path from ICP through positioning, channels, and sales motion.",
