@@ -13,6 +13,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.field {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.025);
+  border-radius: .5rem;
+  padding: .7rem .8rem;
+  font-size: .8rem;
+  outline: none;
+  color: white;
+}
+.field::placeholder { color: rgba(255,255,255,.2); }
+.field:focus { border-color: rgba(59,130,246,.45); }
+
 /* React Flow overrides */
 .react-flow__edge-path {
   stroke-opacity: 0.6;
