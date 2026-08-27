@@ -22,6 +22,20 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True, nullable=False)
+    role: Mapped[str | None] = mapped_column(String(120))
+    company: Mapped[str | None] = mapped_column(String(160))
+    website: Mapped[str | None] = mapped_column(String(255))
+    goals: Mapped[list | None] = mapped_column(JSON)
+    interests: Mapped[list | None] = mapped_column(JSON)
+    onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
 class AuthSession(Base):
     __tablename__ = "auth_sessions"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
