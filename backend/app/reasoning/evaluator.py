@@ -57,23 +57,14 @@ async def evaluate(state: GrowthState) -> dict:
         graph=json.dumps(state.get("knowledge_graph", {}), indent=2)[-20000:],
         memory=json.dumps(state.get("research_memory", []), indent=2),
     )
-    tools = [{"code_execution": {}}]
-    if state.get("domain"):
-        tools.extend([{"url_context": {}}, {"google_search": {}}])
+    # Synthesis should not launch another research pass. The specialist agents
+    # are the research layer; the evaluator is the reasoning/reporting layer.
     response = await _client.aio.models.generate_content(
         model=_MODEL,
         contents=user_message,
-        config=types.GenerateContentConfig(system_instruction=_SYSTEM, response_mime_type="application/json", tools=tools),
+        config=types.GenerateContentConfig(system_instruction=_SYSTEM, response_mime_type="application/json"),
     )
     data = json.loads(response.text)
-    synthesis_sources: list[dict[str, str]] = []
-    try:
-        metadata = response.candidates[0].grounding_metadata
-        for chunk in metadata.grounding_chunks or []:
-            if chunk.web and chunk.web.uri:
-                synthesis_sources.append({"title": chunk.web.title or "Web source", "url": chunk.web.uri})
-    except (AttributeError, IndexError, TypeError):
-        pass
     result = {
         "executive_summary": data["executive_summary"],
         "root_causes": data["root_causes"],
@@ -86,6 +77,4 @@ async def evaluate(state: GrowthState) -> dict:
         "status": "complete",
         "progress": ["Analysis complete — multi-agent evidence, critic, memory, and synthesis ready"],
     }
-    if synthesis_sources:
-        result["agent_results"] = {"synthesis": {"grounding_sources": synthesis_sources}}
     return result
