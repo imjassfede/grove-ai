@@ -7,7 +7,9 @@ class AgentSpec:
     research_tasks: tuple[str, ...]
     preferred_sources: tuple[str, ...]
     tools: tuple[str, ...] = ("web_search", "url_context")
-    max_iterations: int = 3
+    # Two passes are enough for normal research: initial evidence + targeted gap fill.
+    # Keeping this bounded prevents an analysis from exploding into many LLM/tool calls.
+    max_iterations: int = 2
     min_findings: int = 3
 
 
@@ -66,7 +68,11 @@ AGENT_SPECS: dict[str, AgentSpec] = {
             "design minimum viable experiments and prioritize them with ICE",
         ),
         preferred_sources=("existing agent evidence", "company product pages", "competitor evidence", "analytics documentation", "industry benchmarks"),
-        tools=("web_search", "url_context", "code_execution"),
+        # This agent synthesizes evidence already collected; web search here duplicated
+        # work performed by the research specialists and added significant latency.
+        tools=("code_execution",),
+        max_iterations=1,
+        min_findings=2,
     ),
     "gtm": AgentSpec(
         objective="Build an evidence-backed go-to-market path using the company, top 3 competitors, customer intelligence, and market dynamics.",
