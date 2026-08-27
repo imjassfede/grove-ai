@@ -12,6 +12,8 @@ services:
         sync: false
       - key: BREVO_API_KEY
         sync: false
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./grove.db
       - key: CORS_ORIGINS
         value: '["https://grove-web.onrender.com"]'
 
@@ -24,4 +26,4 @@ services:
     plan: free
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://grove-api.onrender.com
+        value: https://grove-api-u1xv.onrender.com
