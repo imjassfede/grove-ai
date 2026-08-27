@@ -25,37 +25,28 @@ class BaseIntelligenceAgent(ABC):
         focus_areas = state.get("focus_areas") or state.get("agent_focus", {}).get(self.name, [])
         key_questions = state.get("key_questions", [])
         shared_results = state.get("agent_results", {})
+        prior_memory = state.get("research_memory", [])
         spec = self._get_spec()
         company_url = domain if domain.startswith("http") else (f"https://{domain}" if domain else "")
-
         focus_text = "\n".join(f"- {f}" for f in focus_areas) if focus_areas else "General analysis"
         questions_text = "\n".join(f"- {q}" for q in key_questions) if key_questions else "- Determine the most decision-critical unknowns."
         tasks_text = "\n".join(f"- {task}" for task in spec.research_tasks)
         sources_text = ", ".join(spec.preferred_sources)
         tools_text = ", ".join(spec.tools)
         previous_text = previous[-12000:] if previous else "No previous iteration. Start by forming a research plan and gathering evidence."
-
-        # Downstream agents receive the outputs of upstream specialists through the
-        # shared LangGraph state. This is the core collaboration mechanism.
         shared_text = json.dumps(shared_results, indent=2) if shared_results else "No upstream specialist results are available yet."
         if len(shared_text) > 30000:
             shared_text = shared_text[-30000:]
+        memory_text = json.dumps(prior_memory[-3:], indent=2) if prior_memory else "No prior completed analyses are available."
 
         company_rules = (
-            "The company domain is available. Start from the official site, then corroborate important claims with independent sources. "
-            "Use live web research whenever a claim depends on current public information."
-            if company_url
-            else "No company domain was supplied. Do not invent company-specific facts; explicitly label assumptions and data gaps."
+            "Start from the official site, then corroborate important claims with independent sources. Use live web research whenever a claim depends on current public information."
+            if company_url else
+            "No company domain was supplied. Do not invent company-specific facts; explicitly label assumptions and data gaps."
         )
-
         quantitative_rule = (
-            "When doing arithmetic, unit economics, percentages, ICE scores, or statistical calculations, use the code_execution tool rather than mental arithmetic."
+            "When doing arithmetic, unit economics, percentages, ICE scores, or statistical calculations, use code_execution rather than mental arithmetic."
             if "code_execution" in spec.tools else ""
-        )
-
-        collaboration_rule = (
-            "Upstream specialist results are evidence, not unquestionable truth. Reuse them, verify important claims, and explicitly flag contradictions or missing evidence. "
-            "Do not redo work that is already sufficiently grounded unless you need independent confirmation."
         )
 
         return f"""You are running iteration {iteration} of a bounded agentic research loop.
@@ -78,44 +69,41 @@ Diagnostic questions:
 
 Preferred evidence sources:
 {sources_text}
-
-Tools enabled for this specialist:
-{tools_text}
+Tools enabled: {tools_text}
 
 {company_rules}
 {quantitative_rule}
-{collaboration_rule}
 
-Shared intelligence produced by upstream specialists:
+Shared intelligence from upstream specialists:
 {shared_text}
 
-Previous iteration output from this same specialist:
+Relevant memory from prior completed analyses:
+{memory_text}
+
+Previous iteration output from this specialist:
 {previous_text}
 
 Agentic loop rules:
-1. Inspect upstream intelligence before deciding what to research.
+1. Inspect upstream intelligence and prior memory before deciding what to research.
 2. Decide what evidence is still missing before concluding.
-3. Use the enabled tools to research the highest-value unknowns.
-4. Prefer primary, recent, and independent sources; corroborate material claims.
+3. Use enabled tools to research the highest-value unknowns.
+4. Prefer primary, recent, independent sources and corroborate material claims.
 5. Distinguish observed facts from inferences and hypotheses.
-6. Never invent pricing, revenue, market share, customer counts, conversion rates, or other metrics.
-7. On later iterations, challenge weak conclusions and search for contradictory evidence.
-8. If an upstream agent makes a claim that materially changes your analysis, verify it when possible.
-9. Stop when the evidence is sufficient for the objective; do not research for its own sake.
+6. Never invent metrics, competitors, pricing, customers, or market share.
+7. Challenge weak conclusions and search for contradictory evidence on later iterations.
+8. If an upstream claim materially changes your analysis, verify it when possible.
+9. Stop when evidence is sufficient; do not research for its own sake.
 
 Return JSON only:
 {{
+  "competitors": [
+    {{"name": "<name>", "rank": <1-3>, "relevance": "<why this is a top competitor>", "evidence": "<supporting evidence>", "source_urls": ["<url>"]}}
+  ],
   "findings": [
-    {{
-      "finding": "<specific finding>",
-      "significance": "<high|medium|low>",
-      "evidence": "<observed evidence and why it matters>",
-      "evidence_type": "<observed|inferred>",
-      "source_urls": ["<source URL>"]
-    }}
+    {{"finding": "<specific finding>", "significance": "<high|medium|low>", "evidence": "<observed evidence and why it matters>", "evidence_type": "<observed|inferred>", "source_urls": ["<url>"]}}
   ],
   "insights": [
-    {{"insight": "<actionable insight>", "confidence": <0.0-1.0>, "source_urls": ["<source URL>"]}}
+    {{"insight": "<actionable insight>", "confidence": <0.0-1.0>, "source_urls": ["<url>"]}}
   ],
   "risks": ["<risk>"],
   "opportunities": ["<opportunity>"],
@@ -126,9 +114,9 @@ Return JSON only:
 
 Quality bar:
 - At least {spec.min_findings} substantive findings and 2 insights.
+- Competitor agent should return exactly 3 validated competitors when evidence permits.
 - Every important finding should have a source when public evidence exists.
 - Generic advice is not a finding.
-- If evidence is weak, say so explicitly.
 """
 
     async def run(self, state: dict) -> dict:
@@ -139,29 +127,22 @@ Quality bar:
         iteration_log: list[dict[str, object]] = []
 
         for iteration in range(1, spec.max_iterations + 1):
-            user_message = self._build_research_prompt(state, iteration, previous)
-            tools = []
-            if "url_context" in spec.tools and state.get("domain", "").strip():
-                tools.append({"url_context": {}})
-            if "web_search" in spec.tools:
-                tools.append({"google_search": {}})
-            if "code_execution" in spec.tools:
-                tools.append({"code_execution": {}})
-
             response = await _client.aio.models.generate_content(
                 model=_MODEL,
-                contents=user_message,
+                contents=self._build_research_prompt(state, iteration, previous),
                 config=types.GenerateContentConfig(
                     system_instruction=self.system_prompt,
                     response_mime_type="application/json",
-                    tools=tools or None,
+                    tools=([{"url_context": {}}] if "url_context" in spec.tools and state.get("domain", "").strip() else [])
+                    + ([{"google_search": {}}] if "web_search" in spec.tools else [])
+                    + ([{"code_execution": {}}] if "code_execution" in spec.tools else [])
+                    or None,
                 ),
             )
             result = json.loads(response.text)
             result["agent"] = self.name
             result["iteration"] = iteration
-
-            sources: list[dict[str, str]] = []
+            sources = []
             try:
                 metadata = response.candidates[0].grounding_metadata
                 for chunk in metadata.grounding_chunks or []:
@@ -171,17 +152,9 @@ Quality bar:
                         sources.append(source)
             except (AttributeError, IndexError, TypeError):
                 pass
-
-            iteration_log.append({
-                "iteration": iteration,
-                "status": result.get("research_status", "continue"),
-                "findings": len(result.get("findings", [])),
-                "sources": len(sources),
-                "search_queries": result.get("search_queries", []),
-            })
+            iteration_log.append({"iteration": iteration, "status": result.get("research_status", "continue"), "findings": len(result.get("findings", [])), "sources": len(sources), "search_queries": result.get("search_queries", [])})
             previous = response.text
             final_result = result
-
             if result.get("research_status") == "sufficient" and len(result.get("findings", [])) >= spec.min_findings:
                 break
 
@@ -189,13 +162,9 @@ Quality bar:
         if all_sources:
             final_result["grounding_sources"] = list(all_sources.values())
         final_result["agent_trace"] = iteration_log
-
         return {
             "agent_results": {self.name: final_result},
-            "progress": [
-                f"{self.name} intelligence complete — {len(final_result.get('findings', []))} findings, "
-                f"{len(iteration_log)} research iteration(s), {len(all_sources)} web sources"
-            ],
+            "progress": [f"{self.name} intelligence complete — {len(final_result.get('findings', []))} findings, {len(iteration_log)} research iteration(s), {len(all_sources)} web sources"],
         }
 
     @abstractmethod
