@@ -13,6 +13,15 @@ services:
       - key: BREVO_API_KEY
         sync: false
       - key: CORS_ORIGINS
-        sync: false
-      - key: DATABASE_URL
-        sync: false
+        value: '["https://grove-web.onrender.com"]'
+
+  - type: web
+    name: grove-web
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://grove-api.onrender.com
