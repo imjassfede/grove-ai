@@ -1,11 +1,13 @@
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "https://grove-api-u1xv.onrender.com").replace(/\/$/, "");
 import type { Analysis, Profile } from "./types";
 
-function authHeaders() {
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "https://grove-api-u1xv.onrender.com").replace(/\/$/, "");
+
+function authHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
   const token = localStorage.getItem("grove_session_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
+
 export function saveSessionToken(token?: string | null) { if (typeof window !== "undefined" && token) localStorage.setItem("grove_session_token", token); }
 export function clearSessionToken() { if (typeof window !== "undefined") localStorage.removeItem("grove_session_token"); }
 const REQUEST_OPTIONS = { headers: { "Content-Type": "application/json" }, credentials: "include" as RequestCredentials };
