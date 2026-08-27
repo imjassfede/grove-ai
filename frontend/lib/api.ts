@@ -1,4 +1,4 @@
-const API_BASE = "";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "https://grove-api-u1xv.onrender.com").replace(/\/$/, "");
 import type { Analysis } from "./types";
 
 const REQUEST_OPTIONS = {
