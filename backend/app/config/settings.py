@@ -1,3 +1,4 @@
+import json
 from functools import lru_cache
 
 from pydantic import AliasChoices, Field, field_validator
@@ -27,7 +28,16 @@ class Settings(BaseSettings):
         if value is None or value == "":
             return ["http://localhost:3000"]
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
+            raw = value.strip()
+            # Render Blueprint values may arrive as a JSON array string.
+            if raw.startswith("["):
+                try:
+                    parsed = json.loads(raw)
+                    if isinstance(parsed, list):
+                        return [str(origin).strip() for origin in parsed if str(origin).strip()]
+                except json.JSONDecodeError:
+                    pass
+            return [origin.strip() for origin in raw.split(",") if origin.strip()]
         return value
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
