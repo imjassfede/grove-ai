@@ -7,9 +7,9 @@ class AgentSpec:
     research_tasks: tuple[str, ...]
     preferred_sources: tuple[str, ...]
     tools: tuple[str, ...] = ("web_search", "url_context")
-    # Two passes are enough for normal research: initial evidence + targeted gap fill.
-    # Keeping this bounded prevents an analysis from exploding into many LLM/tool calls.
-    max_iterations: int = 2
+    # One initial pass is the default. The cross-agent critic can request
+    # one targeted follow-up when evidence is insufficient.
+    max_iterations: int = 1
     min_findings: int = 3
 
 
@@ -46,6 +46,7 @@ AGENT_SPECS: dict[str, AgentSpec] = {
             "identify white space, threats, switching costs, and second-order competitive effects",
         ),
         preferred_sources=("competitor official sites", "pricing pages", "product docs", "customer reviews", "company filings", "investor materials", "independent comparisons", "industry research"),
+        max_iterations=2,
     ),
     "revenue": AgentSpec(
         objective="Diagnose monetization and pricing opportunities using the company's economics and the competitive pricing landscape.",
@@ -68,8 +69,6 @@ AGENT_SPECS: dict[str, AgentSpec] = {
             "design minimum viable experiments and prioritize them with ICE",
         ),
         preferred_sources=("existing agent evidence", "company product pages", "competitor evidence", "analytics documentation", "industry benchmarks"),
-        # This agent synthesizes evidence already collected; web search here duplicated
-        # work performed by the research specialists and added significant latency.
         tools=("code_execution",),
         max_iterations=1,
         min_findings=2,
