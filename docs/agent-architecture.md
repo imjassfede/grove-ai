@@ -1,55 +1,57 @@
 # Grove agent architecture
 
-Grove uses specialist research agents rather than one general-purpose analyst. Each agent has an objective, a research task set, preferred evidence sources, a bounded research loop, and a role-specific toolset.
+Grove is a collaborative research system, not six independent chatbots. Specialists build a shared intelligence state and can trigger targeted follow-up research after a cross-agent critique.
 
-## Market agent
-- Goal: market attractiveness, trajectory, segmentation, timing, disruption.
-- Research: market sizing, growth signals, macro/regulatory/technology shifts, segment opportunity, market maturity.
-- Evidence: official statistics, regulators, filings, industry associations, primary research.
-- Tools: Google Search + URL Context.
+## Research workflow
 
-## Customer agent
-- Goal: customer needs, behavior, friction, retention and underserved segments.
-- Research: ICP/persona signals, voice of customer, reviews, communities, JTBD, objections, lifecycle signals.
-- Evidence: reviews, case studies, communities, customer pages, product docs.
-- Tools: Google Search + URL Context.
+```text
+Classifier → Planner → Competitor Discovery
+                         ↓
+          ┌──────────────┼──────────────┐
+        Market        Customer        Revenue        GTM
+          └──────────────┼──────────────┘
+                         ↓
+                     Experiment
+                         ↓
+                       Critic
+                    ↙          ↘
+          targeted follow-up   sufficient
+                    ↓             ↓
+                  Critic       Synthesis
+```
 
-## Competitor agent
-- Goal: competitive landscape, differentiation, white space, threats.
-- Research: direct/adjacent competitors, positioning, ICP, pricing, packaging, features, channels, gaps, defensibility.
-- Evidence: competitor sites, pricing pages, product docs, reviews, filings, independent comparisons.
-- Tools: Google Search + URL Context.
+## Specialist responsibilities
 
-## Revenue agent
-- Goal: monetization and unit economics diagnosis.
-- Research: pricing/packaging, visible funnel, conversion/churn/expansion hypotheses, revenue leakage, quantitative calculations.
-- Evidence: pricing pages, billing docs, filings, investor materials, product pages.
-- Tools: Google Search + URL Context + Code Execution.
+### Competitor
+Discovers and validates a ranked Top 3, then creates dossiers covering positioning, ICP, product, pricing, packaging, channels, geography, customers, strategic moves, strengths, weaknesses and competitive triggers.
 
-## Experiment agent
-- Goal: convert uncertainty into the smallest high-learning experiments.
-- Research: bottleneck/uncertainty identification, impact evidence, leading/lagging metrics, MVE design, ICE prioritization.
-- Evidence: upstream agent evidence, company/product evidence, analytics documentation, benchmarks.
-- Tools: Google Search + URL Context + Code Execution.
+### Market
+Consumes the Top 3 dossier and analyzes market structure, segments, trajectory, customers, technology, regulation, macroeconomics, geography, trade and geopolitics. It looks for second-order effects and opportunities revealed by competitor behavior.
 
-## GTM agent
-- Goal: evidence-backed path from ICP to positioning, channels and sales motion.
-- Research: ICP validation, positioning comparison, distribution/channel evidence, PLG vs sales-led vs partner motion.
-- Evidence: company sites, customer stories, competitor sites, channel evidence, industry research.
-- Tools: Google Search + URL Context.
+### Customer
+Uses company and Top 3 competitor evidence to compare ICPs, jobs-to-be-done, pain points, objections, switching triggers, voice-of-customer signals and underserved needs.
 
-## Agentic loop
+### Revenue
+Benchmarks company and Top 3 pricing/packaging, then uses code execution for defensible calculations and monetization hypotheses.
 
-Each specialist runs up to three iterations:
+### GTM
+Connects company, competitor, customer and market intelligence to ICP, positioning, channels, partnerships, geography and sales motion.
 
-1. Identify the highest-value unknowns.
-2. Research using its allowed tools.
-3. Separate observed evidence from inference.
-4. Challenge weak or contradictory findings on subsequent iterations.
-5. Stop early when the evidence threshold is met.
+### Experiment
+Turns cross-agent uncertainty into falsifiable experiments and prioritizes them with ICE.
 
-The loop records iteration count, queries, findings and grounding sources in `agent_trace` and `grounding_sources` so the UI can expose how an analysis was produced.
+## Agentic behavior
+
+Every specialist has a bounded internal research loop. The cross-agent critic then checks the combined evidence for unsupported claims, contradictions, weak sources and missing information. It can delegate one targeted follow-up to the highest-value specialist for up to two additional research rounds.
+
+## Evidence layer
+
+Findings retain source URLs and grounding sources. The critic assigns lightweight source-quality scores and the knowledge layer builds a dependency-free JSON evidence graph of agents, findings, insights and sources. This can later move to Postgres/pgvector or a graph database without changing the agent contract.
+
+## Memory
+
+Prior completed analyses are retrieved through `AnalysisMemory` and supplied to new research as contextual memory. The current implementation is intentionally lightweight and can later be upgraded to semantic/vector retrieval.
 
 ## Design principle
 
-The model supplies reasoning; tools supply evidence and computation. Agents are not allowed to manufacture company metrics, pricing, market share, customer counts, or conversion data.
+The model provides reasoning; tools provide evidence and computation. Agents must distinguish observed facts, inferences and hypotheses and must not manufacture company metrics, pricing, market share, customer counts or conversion data.
