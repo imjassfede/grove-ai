@@ -8,7 +8,7 @@ from app.config.settings import get_settings
 from app.intelligence.specs import AGENT_SPECS
 
 _client = genai.Client(api_key=get_settings().google_api_key)
-_MODEL = "gemini-2.5-flash"
+_MODEL = "gemini-3.6-flash"
 
 
 class BaseIntelligenceAgent(ABC):
@@ -31,6 +31,7 @@ class BaseIntelligenceAgent(ABC):
         questions_text = "\n".join(f"- {q}" for q in key_questions) if key_questions else "- Determine the most decision-critical unknowns."
         tasks_text = "\n".join(f"- {task}" for task in spec.research_tasks)
         sources_text = ", ".join(spec.preferred_sources)
+        tools_text = ", ".join(spec.tools)
         previous_text = previous[-12000:] if previous else "No previous iteration. Start by forming a research plan and gathering evidence."
 
         company_rules = (
@@ -38,6 +39,11 @@ class BaseIntelligenceAgent(ABC):
             "Use live web research whenever a claim depends on current public information."
             if company_url
             else "No company domain was supplied. Do not invent company-specific facts; explicitly label assumptions and data gaps."
+        )
+
+        quantitative_rule = (
+            "When doing arithmetic, unit economics, percentages, ICE scores, or statistical calculations, use the code_execution tool rather than mental arithmetic."
+            if "code_execution" in spec.tools else ""
         )
 
         return f"""You are running iteration {iteration} of a bounded agentic research loop.
@@ -61,14 +67,18 @@ Diagnostic questions:
 Preferred evidence sources:
 {sources_text}
 
+Tools enabled for this specialist:
+{tools_text}
+
 {company_rules}
+{quantitative_rule}
 
 Previous iteration output:
 {previous_text}
 
 Agentic loop rules:
 1. Decide what evidence is still missing before concluding.
-2. Use the available web tools to research the highest-value unknowns.
+2. Use the enabled tools to research the highest-value unknowns.
 3. Prefer primary, recent, and independent sources; corroborate material claims.
 4. Distinguish observed facts from inferences and hypotheses.
 5. Never invent pricing, revenue, market share, customer counts, conversion rates, or other metrics.
@@ -112,10 +122,13 @@ Quality bar:
 
         for iteration in range(1, spec.max_iterations + 1):
             user_message = self._build_research_prompt(state, iteration, previous)
-            domain = state.get("domain", "").strip()
             tools = []
-            if domain:
-                tools.extend([{"url_context": {}}, {"google_search": {}}])
+            if "url_context" in spec.tools and state.get("domain", "").strip():
+                tools.append({"url_context": {}})
+            if "web_search" in spec.tools:
+                tools.append({"google_search": {}})
+            if "code_execution" in spec.tools:
+                tools.append({"code_execution": {}})
 
             response = await _client.aio.models.generate_content(
                 model=_MODEL,
