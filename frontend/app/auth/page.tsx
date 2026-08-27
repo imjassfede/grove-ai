@@ -5,7 +5,7 @@ import { FormEvent, useState } from "react";
 import { ArrowRight, Eye, EyeOff, TrendingUp } from "lucide-react";
 import { trackEvent } from "@/lib/api";
 
-const API_BASE = "";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "https://grove-api-u1xv.onrender.com").replace(/\/$/, "");
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"signup" | "login">("signup");
