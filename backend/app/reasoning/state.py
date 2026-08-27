@@ -52,6 +52,7 @@ class GrowthState(TypedDict):
 
     # Agent results — merged via dict union as agents run in parallel
     agent_results: Annotated[dict[str, Any], operator.or_]
+    agent_trace: dict[str, Any]
 
     # Synthesis
     root_causes: list[RootCause]
