@@ -15,7 +15,7 @@ services:
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///./grove.db
       - key: CORS_ORIGINS
-        value: '["https://grove-web.onrender.com"]'
+        value: https://grove-web-b-l57e.onrender.com
 
   - type: web
     name: grove-web
