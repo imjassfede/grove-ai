@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analyses, auth, events, health
+from app.api.routes import analyses, auth, events, health, profile
 from app.config.settings import get_settings
 from app.database.connection import create_tables
 
@@ -35,3 +35,4 @@ app.include_router(health.router)
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(events.router, prefix="/api/v1")
 app.include_router(analyses.router, prefix="/api/v1")
+app.include_router(profile.router, prefix="/api/v1")
