@@ -50,7 +50,8 @@ class GrowthState(TypedDict):
     selected_agents: list[str]
     agent_focus: dict[str, list[str]]
 
-    # Agent results — merged via dict union as agents run in parallel
+    # Shared intelligence — specialist outputs accumulate here and are visible
+    # to downstream agents in later workflow phases.
     agent_results: Annotated[dict[str, Any], operator.or_]
     agent_trace: dict[str, Any]
 
