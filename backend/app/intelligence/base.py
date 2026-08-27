@@ -24,6 +24,7 @@ class BaseIntelligenceAgent(ABC):
         domain = state.get("domain", "").strip()
         focus_areas = state.get("focus_areas", [])
         key_questions = state.get("key_questions", [])
+        shared_results = state.get("agent_results", {})
         spec = self._get_spec()
         company_url = domain if domain.startswith("http") else (f"https://{domain}" if domain else "")
 
@@ -33,6 +34,12 @@ class BaseIntelligenceAgent(ABC):
         sources_text = ", ".join(spec.preferred_sources)
         tools_text = ", ".join(spec.tools)
         previous_text = previous[-12000:] if previous else "No previous iteration. Start by forming a research plan and gathering evidence."
+
+        # Downstream agents receive the outputs of upstream specialists through the
+        # shared LangGraph state. This is the core collaboration mechanism.
+        shared_text = json.dumps(shared_results, indent=2) if shared_results else "No upstream specialist results are available yet."
+        if len(shared_text) > 30000:
+            shared_text = shared_text[-30000:]
 
         company_rules = (
             "The company domain is available. Start from the official site, then corroborate important claims with independent sources. "
@@ -44,6 +51,11 @@ class BaseIntelligenceAgent(ABC):
         quantitative_rule = (
             "When doing arithmetic, unit economics, percentages, ICE scores, or statistical calculations, use the code_execution tool rather than mental arithmetic."
             if "code_execution" in spec.tools else ""
+        )
+
+        collaboration_rule = (
+            "Upstream specialist results are evidence, not unquestionable truth. Reuse them, verify important claims, and explicitly flag contradictions or missing evidence. "
+            "Do not redo work that is already sufficiently grounded unless you need independent confirmation."
         )
 
         return f"""You are running iteration {iteration} of a bounded agentic research loop.
@@ -72,18 +84,24 @@ Tools enabled for this specialist:
 
 {company_rules}
 {quantitative_rule}
+{collaboration_rule}
 
-Previous iteration output:
+Shared intelligence produced by upstream specialists:
+{shared_text}
+
+Previous iteration output from this same specialist:
 {previous_text}
 
 Agentic loop rules:
-1. Decide what evidence is still missing before concluding.
-2. Use the enabled tools to research the highest-value unknowns.
-3. Prefer primary, recent, and independent sources; corroborate material claims.
-4. Distinguish observed facts from inferences and hypotheses.
-5. Never invent pricing, revenue, market share, customer counts, conversion rates, or other metrics.
-6. On later iterations, challenge weak conclusions and search for contradictory evidence.
-7. Stop when the evidence is sufficient for the objective; do not research for its own sake.
+1. Inspect upstream intelligence before deciding what to research.
+2. Decide what evidence is still missing before concluding.
+3. Use the enabled tools to research the highest-value unknowns.
+4. Prefer primary, recent, and independent sources; corroborate material claims.
+5. Distinguish observed facts from inferences and hypotheses.
+6. Never invent pricing, revenue, market share, customer counts, conversion rates, or other metrics.
+7. On later iterations, challenge weak conclusions and search for contradictory evidence.
+8. If an upstream agent makes a claim that materially changes your analysis, verify it when possible.
+9. Stop when the evidence is sufficient for the objective; do not research for its own sake.
 
 Return JSON only:
 {{
