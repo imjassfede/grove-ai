@@ -1,4 +1,4 @@
-from langgraph.graph import END, StateGraph
+from langgraph.graph import StateGraph
 
 from app.reasoning import classifier, critic, evaluator, planner
 from app.reasoning.state import GrowthState
@@ -11,7 +11,7 @@ _ALL_AGENTS = ("competitor", "market", "customer", "revenue", "gtm", "experiment
 def _followup_route(state: GrowthState):
     agent = state.get("followup_agent")
     if agent in _ALL_AGENTS and state.get("research_round", 0) <= 2:
-        return agent
+        return f"followup_{agent}"
     return "evaluate"
 
 
@@ -25,26 +25,26 @@ def build_graph() -> StateGraph:
     from app.intelligence import registry
     for name, agent in registry.items():
         builder.add_node(name, agent.run)
+        builder.add_node(f"followup_{name}", agent.run)
 
     builder.set_entry_point("classify")
     builder.add_edge("classify", "plan")
-    # Competitor discovery is intentionally first because its validated Top 3
-    # dossier becomes shared context for market/customer/revenue/GTM.
+    # Phase 1: establish the competitive dossier first.
     builder.add_edge("plan", "competitor")
+    # Phase 2: parallel specialist research over the shared competitive dossier.
     for name in _CORE_AGENTS:
         builder.add_edge("competitor", name)
     builder.add_edge(list(_CORE_AGENTS), "experiment")
+    # Phase 3: challenge the combined evidence and adaptively delegate one
+    # targeted follow-up if the critic finds a material gap or contradiction.
     builder.add_edge("experiment", "critic")
-
-    # The critic can delegate exactly one targeted follow-up to a specialist.
-    # That specialist returns to the critic, creating a bounded adaptive loop.
     builder.add_conditional_edges(
         "critic",
         _followup_route,
-        {**{name: name for name in _ALL_AGENTS}, "evaluate": "evaluate"},
+        {**{f"followup_{name}": f"followup_{name}" for name in _ALL_AGENTS}, "evaluate": "evaluate"},
     )
     for name in _ALL_AGENTS:
-        builder.add_edge(name, "critic")
+        builder.add_edge(f"followup_{name}", "critic")
 
     builder.set_finish_point("evaluate")
     return builder.compile()
