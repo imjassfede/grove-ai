@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = "";
 import type { Analysis } from "./types";
 
 const REQUEST_OPTIONS = {
@@ -56,7 +56,8 @@ export async function startDomainAnalysis(domain: string): Promise<Analysis> {
 
 export async function getAnalysis(id: string): Promise<Analysis> {
   const response = await fetch(`${API_BASE}/api/v1/analyses/${encodeURIComponent(id)}`, {
-    credentials: "include",
+    ...REQUEST_OPTIONS,
+    method: "GET",
     cache: "no-store",
   });
   if (!response.ok) throw new Error((await response.json().catch(() => null))?.detail ?? "Unable to load analysis");
