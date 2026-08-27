@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,7 +21,6 @@ class Settings(BaseSettings):
         value = self.cors_origins_raw.strip()
         if not value:
             return ["http://localhost:3000"]
-        # Render may provide either a comma-separated string or JSON-style array.
         if value.startswith("[") and value.endswith("]"):
             value = value[1:-1].replace('"', "").replace("'", "")
         return [origin.strip() for origin in value.split(",") if origin.strip()]
