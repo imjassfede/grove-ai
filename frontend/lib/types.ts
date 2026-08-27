@@ -11,4 +11,17 @@ export interface Analysis {
   executive_summary?: string | null; progress?: string[] | null; error?: string | null;
   created_at?: string; updated_at?: string;
 }
+export interface Profile {
+  id: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  credits: number;
+  role?: string | null;
+  company?: string | null;
+  website?: string | null;
+  goals: string[];
+  interests: string[];
+  onboarding_completed: boolean;
+}
 export interface CanvasNodeData { label: string; description?: string; items?: string[]; [key: string]: unknown; }
