@@ -26,6 +26,8 @@ class BaseIntelligenceAgent(ABC):
         key_questions = state.get("key_questions", [])
         shared_results = state.get("agent_results", {})
         prior_memory = state.get("research_memory", [])
+        critic = state.get("critic", {})
+        followup_focus = state.get("followup_focus", "")
         spec = self._get_spec()
         company_url = domain if domain.startswith("http") else (f"https://{domain}" if domain else "")
         focus_text = "\n".join(f"- {f}" for f in focus_areas) if focus_areas else "General analysis"
@@ -33,11 +35,12 @@ class BaseIntelligenceAgent(ABC):
         tasks_text = "\n".join(f"- {task}" for task in spec.research_tasks)
         sources_text = ", ".join(spec.preferred_sources)
         tools_text = ", ".join(spec.tools)
-        previous_text = previous[-12000:] if previous else "No previous iteration. Start by forming a research plan and gathering evidence."
+        previous_text = previous[-8000:] if previous else "No previous iteration. Start by forming a research plan and gathering evidence."
         shared_text = json.dumps(shared_results, indent=2) if shared_results else "No upstream specialist results are available yet."
-        if len(shared_text) > 30000:
-            shared_text = shared_text[-30000:]
-        memory_text = json.dumps(prior_memory[-3:], indent=2) if prior_memory else "No prior completed analyses are available."
+        if len(shared_text) > 22000:
+            shared_text = shared_text[-22000:]
+        memory_text = json.dumps(prior_memory[-2:], indent=2) if prior_memory else "No prior completed analyses are available."
+        critic_text = json.dumps(critic, indent=2)[-10000:] if critic else "No cross-agent critic feedback yet."
 
         company_rules = (
             "Start from the official site, then corroborate important claims with independent sources. Use live web research whenever a claim depends on current public information."
@@ -47,6 +50,10 @@ class BaseIntelligenceAgent(ABC):
         quantitative_rule = (
             "When doing arithmetic, unit economics, percentages, ICE scores, or statistical calculations, use code_execution rather than mental arithmetic."
             if "code_execution" in spec.tools else ""
+        )
+        followup_rule = (
+            f"This is a targeted follow-up. Prioritize closing this critic-identified gap: {followup_focus}. Do not repeat the previous research unless verification is necessary."
+            if followup_focus else ""
         )
 
         return f"""You are running iteration {iteration} of a bounded agentic research loop.
@@ -73,9 +80,13 @@ Tools enabled: {tools_text}
 
 {company_rules}
 {quantitative_rule}
+{followup_rule}
 
 Shared intelligence from upstream specialists:
 {shared_text}
+
+Cross-agent critic feedback:
+{critic_text}
 
 Relevant memory from prior completed analyses:
 {memory_text}
@@ -84,15 +95,14 @@ Previous iteration output from this specialist:
 {previous_text}
 
 Agentic loop rules:
-1. Inspect upstream intelligence and prior memory before deciding what to research.
-2. Decide what evidence is still missing before concluding.
-3. Use enabled tools to research the highest-value unknowns.
-4. Prefer primary, recent, independent sources and corroborate material claims.
-5. Distinguish observed facts from inferences and hypotheses.
-6. Never invent metrics, competitors, pricing, customers, or market share.
-7. Challenge weak conclusions and search for contradictory evidence on later iterations.
-8. If an upstream claim materially changes your analysis, verify it when possible.
-9. Stop when evidence is sufficient; do not research for its own sake.
+1. Inspect upstream intelligence and critic feedback before deciding what to research.
+2. Research only the highest-value missing evidence.
+3. Prefer primary, recent, independent sources and corroborate material claims.
+4. Distinguish observed facts from inferences and hypotheses.
+5. Never invent metrics, competitors, pricing, customers, or market share.
+6. Challenge weak conclusions and search for contradictory evidence when useful.
+7. If an upstream claim materially changes your analysis, verify it when possible.
+8. Stop when evidence is sufficient; do not research for its own sake.
 
 Return JSON only:
 {{
@@ -133,6 +143,7 @@ Quality bar:
                 config=types.GenerateContentConfig(
                     system_instruction=self.system_prompt,
                     response_mime_type="application/json",
+                    max_output_tokens=3500,
                     tools=([{"url_context": {}}] if "url_context" in spec.tools and state.get("domain", "").strip() else [])
                     + ([{"google_search": {}}] if "web_search" in spec.tools else [])
                     + ([{"code_execution": {}}] if "code_execution" in spec.tools else [])
