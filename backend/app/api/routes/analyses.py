@@ -20,16 +20,20 @@ ANON_COOKIE = "grove_anonymous"
 FREE_CREDITS = 5
 
 
-async def _run_graph(analysis_id: uuid.UUID, challenge: str) -> None:
+async def _run_graph(analysis_id: uuid.UUID, challenge: str, domain: str | None = None) -> None:
     from app.database.connection import _SessionLocal
     from app.reasoning.orchestrator import graph
 
     async with _SessionLocal() as session:
         repo = AnalysisRepository(session)
-        await repo.update_from_state(analysis_id, {"status": "running", "progress": ["Starting analysis…"]})
+        await repo.update_from_state(
+            analysis_id,
+            {"status": "running", "progress": ["Starting grounded growth investigation…"]},
+        )
         initial_state: GrowthState = {
             "challenge": challenge,
             "analysis_id": str(analysis_id),
+            "domain": domain or "",
             "business_area": "",
             "problem_type": "",
             "urgency": "",
@@ -109,79 +113,35 @@ async def submit_challenge(
         if user.credits < 1:
             raise HTTPException(status_code=402, detail="No Grove credits remaining")
         user.credits -= 1
-        analysis = Analysis(
-            challenge=request.challenge,
-            domain=request.domain,
-            user_id=user.id,
-            status="pending",
-        )
+        analysis = Analysis(challenge=request.challenge, domain=request.domain, user_id=user.id, status="pending")
         session.add(analysis)
         await session.commit()
         await session.refresh(analysis)
-        await track_event(
-            "credit_consumed",
-            str(user.id),
-            {"analysis_id": str(analysis.id), "credits_remaining": user.credits},
-        )
+        await track_event("credit_consumed", str(user.id), {"analysis_id": str(analysis.id), "credits_remaining": user.credits})
     else:
         anon, raw_token = await _get_or_create_anonymous(session, grove_anonymous)
         if anon.credits < 1:
-            raise HTTPException(
-                status_code=402,
-                detail="Your 5 free credits have been used. Create an account to continue.",
-            )
+            raise HTTPException(status_code=402, detail="Your 5 free credits have been used. Create an account to continue.")
         anon.credits -= 1
-        analysis = Analysis(
-            challenge=request.challenge,
-            domain=request.domain,
-            anonymous_session_id=anon.id,
-            status="pending",
-        )
+        analysis = Analysis(challenge=request.challenge, domain=request.domain, anonymous_session_id=anon.id, status="pending")
         session.add(analysis)
         await session.commit()
         await session.refresh(analysis)
-        response.set_cookie(
-            ANON_COOKIE,
-            raw_token,
-            httponly=True,
-            secure=True,
-            samesite="none",
-            max_age=30 * 86400,
-            path="/",
-        )
-        await track_event(
-            "credit_consumed",
-            "anonymous",
-            {
-                "analysis_id": str(analysis.id),
-                "anonymous": True,
-                "credits_remaining": anon.credits,
-            },
-        )
+        response.set_cookie(ANON_COOKIE, raw_token, httponly=True, secure=True, samesite="none", max_age=30 * 86400, path="/")
+        await track_event("credit_consumed", "anonymous", {"analysis_id": str(analysis.id), "anonymous": True, "credits_remaining": anon.credits})
 
-    background_tasks.add_task(_run_graph, analysis.id, analysis.challenge)
+    background_tasks.add_task(_run_graph, analysis.id, analysis.challenge, analysis.domain)
     return AnalysisResponse.model_validate(analysis)
 
 
 @router.get("", response_model=AnalysisListResponse)
-async def list_analyses(
-    session: AsyncSession = Depends(get_session),
-    grove_session: str | None = Cookie(default=None),
-) -> AnalysisListResponse:
+async def list_analyses(session: AsyncSession = Depends(get_session), grove_session: str | None = Cookie(default=None)) -> AnalysisListResponse:
     user = await _get_authenticated_user(session, grove_session)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    result = await session.execute(
-        select(Analysis)
-        .where(Analysis.user_id == user.id)
-        .order_by(Analysis.created_at.desc())
-        .limit(50)
-    )
+    result = await session.execute(select(Analysis).where(Analysis.user_id == user.id).order_by(Analysis.created_at.desc()).limit(50))
     analyses = list(result.scalars().all())
-    return AnalysisListResponse(
-        analyses=[AnalysisResponse.model_validate(a) for a in analyses],
-        total=len(analyses),
-    )
+    return AnalysisListResponse(analyses=[AnalysisResponse.model_validate(a) for a in analyses], total=len(analyses))
 
 
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
@@ -194,18 +154,13 @@ async def get_analysis(
     analysis = await session.get(Analysis, analysis_id)
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
-
     user = await _get_authenticated_user(session, grove_session)
     if user and analysis.user_id == user.id:
         return AnalysisResponse.model_validate(analysis)
-
     if analysis.user_id is None and grove_anonymous:
         token_hash = hashlib.sha256(grove_anonymous.encode()).hexdigest()
-        result = await session.execute(
-            select(AnonymousSession).where(AnonymousSession.token_hash == token_hash)
-        )
+        result = await session.execute(select(AnonymousSession).where(AnonymousSession.token_hash == token_hash))
         anon = result.scalar_one_or_none()
         if anon and analysis.anonymous_session_id == anon.id:
             return AnalysisResponse.model_validate(analysis)
-
     raise HTTPException(status_code=403, detail="You do not have access to this analysis")
