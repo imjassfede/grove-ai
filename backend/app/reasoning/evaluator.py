@@ -7,9 +7,9 @@ from app.config.settings import get_settings
 from app.reasoning.state import GrowthState
 
 _client = genai.Client(api_key=get_settings().google_api_key)
-_MODEL = "gemini-2.5-flash"
+_MODEL = "gemini-3.6-flash"
 
-_SYSTEM = """You are a senior management consultant synthesizing grounded intelligence from multiple business analysts.
+_SYSTEM = """You are a senior management consultant synthesizing grounded intelligence from multiple specialist research agents.
 Your job is to combine evidence into a clear, structured, and actionable Growth Intelligence Report.
 
 Evidence discipline is mandatory:
@@ -18,6 +18,7 @@ Evidence discipline is mandatory:
 - Do not invent company metrics, customer counts, pricing, market share, competitors, or performance data.
 - If evidence conflicts or is weak, lower confidence and state the data gap.
 - Recommendations must follow from the strongest evidence, not generic growth advice.
+- Use code execution for non-trivial scoring or arithmetic rather than mental arithmetic.
 
 You MUST respond with valid JSON only."""
 
@@ -81,9 +82,16 @@ Rules:
 
 async def evaluate(state: GrowthState) -> dict:
     agent_results_text = ""
+    trace_summary: dict[str, object] = {}
     for agent_name, result in state.get("agent_results", {}).items():
         agent_results_text += f"\n\n=== {agent_name.upper()} INTELLIGENCE ===\n"
         agent_results_text += json.dumps(result, indent=2)
+        trace_summary[agent_name] = {
+            "iterations": len(result.get("agent_trace", [])),
+            "findings": len(result.get("findings", [])),
+            "sources": len(result.get("grounding_sources", [])),
+            "queries": result.get("search_queries", []),
+        }
 
     user_message = _PROMPT.format(
         challenge=state["challenge"],
@@ -91,8 +99,9 @@ async def evaluate(state: GrowthState) -> dict:
         agent_results=agent_results_text,
     )
 
-    tools = [{"google_search": {}}] if state.get("domain") else None
+    tools = [{"code_execution": {}}]
     if state.get("domain"):
+        tools.extend([{"url_context": {}}, {"google_search": {}}])
         user_message += "\n\nUse live web search to verify the most decision-critical company-specific claims before finalizing the report."
 
     response = await _client.aio.models.generate_content(
@@ -121,6 +130,7 @@ async def evaluate(state: GrowthState) -> dict:
         "insights": data["insights"],
         "recommendations": data["recommendations"],
         "experiments": data["experiments"],
+        "agent_trace": trace_summary,
         "status": "complete",
         "progress": [
             "Analysis complete — grounded Growth Intelligence Report ready"
