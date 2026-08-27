@@ -18,23 +18,17 @@ class Settings(BaseSettings):
 
     @field_validator("database_url", mode="before")
     @classmethod
-    def default_database_url(cls, value):
-        if value is None or not str(value).strip():
-            return "sqlite+aiosqlite:///./grove.db"
-        return value
+    def empty_database_url_uses_sqlite(cls, value):
+        return value or "sqlite+aiosqlite:///./grove.db"
 
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value):
-        if value is None or not str(value).strip():
+        if value is None or value == "":
             return ["http://localhost:3000"]
-        if isinstance(value, list):
-            return value
-        raw = str(value).strip()
-        if raw.startswith("["):
-            import json
-            return json.loads(raw)
-        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
