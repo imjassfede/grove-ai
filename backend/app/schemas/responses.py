@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class AnalysisResponse(BaseModel):
     id: uuid.UUID
     challenge: str
+    domain: str | None = None
     status: str
     business_area: str | None = None
     problem_type: str | None = None
