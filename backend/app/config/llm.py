@@ -1,16 +1,17 @@
+import json
+
 from google import genai
 from google.genai import types
 
 from app.config.settings import get_settings
 
 _client = genai.Client(api_key=get_settings().google_api_key)
-_MODEL = "gemini-2.5-flash"
+# Keep every LLM entry point on the currently supported model.
+_MODEL = "gemini-3.6-flash"
 
 
 async def complete(system: str, user: str) -> dict:
     """Single async JSON-mode call to Gemini Flash. Returns parsed dict."""
-    import json
-
     response = await _client.aio.models.generate_content(
         model=_MODEL,
         contents=user,
