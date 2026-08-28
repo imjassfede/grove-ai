@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -17,6 +18,8 @@ from app.schemas.requests import SubmitChallengeRequest
 from app.schemas.responses import AnalysisListResponse, AnalysisResponse
 
 router = APIRouter(prefix="/analyses", tags=["analyses"]); ANON_COOKIE = "grove_anonymous"; FREE_CREDITS = 5
+logger = logging.getLogger(__name__)
+PUBLIC_ANALYSIS_ERROR = "Analysis temporarily unavailable. Please try again later."
 
 async def _run_graph(analysis_id: uuid.UUID, challenge: str, domain: str | None = None) -> None:
     from app.database.connection import _SessionLocal
@@ -29,8 +32,13 @@ async def _run_graph(analysis_id: uuid.UUID, challenge: str, domain: str | None 
                 for _node, state_update in event.items():
                     if isinstance(state_update, dict): await repo.update_from_state(analysis_id, state_update)
             await track_event("analysis_completed", str(analysis_id), {"analysis_id": str(analysis_id)})
-        except Exception as exc:
-            await repo.update_from_state(analysis_id, {"status": "error", "error": str(exc)}); await track_event("analysis_failed", str(analysis_id), {"error": str(exc)[:200]})
+        except Exception:
+            logger.exception("Analysis pipeline failed", extra={"analysis_id": str(analysis_id)})
+            await repo.update_from_state(analysis_id, {"status": "error", "error": PUBLIC_ANALYSIS_ERROR, "progress": ["Analysis could not be completed."]})
+            try:
+                await track_event("analysis_failed", str(analysis_id), {"analysis_id": str(analysis_id)})
+            except Exception:
+                logger.exception("Failed to track analysis failure", extra={"analysis_id": str(analysis_id)})
 
 async def _get_or_create_anonymous(session: AsyncSession, token: str | None) -> tuple[AnonymousSession, str]:
     if token:
